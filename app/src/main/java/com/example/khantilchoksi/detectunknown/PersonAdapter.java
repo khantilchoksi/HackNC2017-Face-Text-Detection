@@ -137,7 +137,7 @@ public class PersonAdapter extends RecyclerView.Adapter<PersonAdapter.ViewHolder
         holder.getHairTextView().setText("Hair: "+getHair(facesList.get(position).faceAttributes.hair));
         holder.getBlurTextView().setText("Blur: "+facesList.get(position).faceAttributes.blur.blurLevel);
 
-        holder.getPersonIconImageView().setImageBitmap(faceThumbnailsList.get(position));
+        holder.getPersonIconImageView().setImageBitmap(Bitmap.createScaledBitmap(faceThumbnailsList.get(position), 300, 300, false));
     }
 
     // Detecting/Analysing
@@ -248,6 +248,18 @@ public class PersonAdapter extends RecyclerView.Adapter<PersonAdapter.ViewHolder
     public int getItemCount() {
         return facesList.size();
     }
+/*
+    public static Bitmap scaleDown(Bitmap realImage, float maxImageSize,
+                                   boolean filter) {
+        float ratio = Math.min(
+                (float) maxImageSize / realImage.getWidth(),
+                (float) maxImageSize / realImage.getHeight());
+        int width = Math.round((float) ratio * realImage.getWidth());
+        int height = Math.round((float) ratio * realImage.getHeight());
 
+        Bitmap newBitmap = Bitmap.createScaledBitmap(realImage, width,
+                height, filter);
+        return newBitmap;
+    }*/
 
 }

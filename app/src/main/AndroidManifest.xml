@@ -3,7 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.example.khantilchoksi.detectunknown">
 
-    <uses-sdk tools:overrideLibrary="com.microsoft.projectoxford.face"/>
+    <uses-sdk tools:overrideLibrary="com.microsoft.projectoxford.face" />
+
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
 
@@ -18,11 +19,26 @@
             android:name=".MainActivity"
             android:label="@string/app_name"
             android:theme="@style/AppTheme.NoActionBar">
+
+        </activity>
+        <activity
+            android:name=".ParentActivity"
+            android:label="@string/title_activity_parent"
+            android:theme="@style/AppTheme.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+        <activity
+            android:name=".RecognizeObjectActivity"
+            android:label="@string/title_activity_recognize_object"
+            android:parentActivityName=".ParentActivity"
+            android:theme="@style/AppTheme.NoActionBar">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="com.example.khantilchoksi.detectunknown.ParentActivity" />
         </activity>
     </application>
 
