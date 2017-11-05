@@ -6,7 +6,6 @@ import android.content.Context;
 import android.os.AsyncTask;
 import android.util.Log;
 
-import com.example.khantilchoksi.detectunknown.helper.MyApp;
 import com.microsoft.projectoxford.face.FaceServiceClient;
 import com.microsoft.projectoxford.face.contract.Face;
 
@@ -20,12 +19,15 @@ public class FacialRecognitionTask extends AsyncTask<InputStream, String, Face[]
     private ProgressDialog mProgressDialog;
     private Activity mActivity;
     private Context mContext;
+    private static FaceServiceClient mFaceServiceClient;
+
     private static final String LOG_TAG = FacialRecognitionTask.class.getSimpleName();
     public AsyncResponse delegate = null;
 
 
-    public FacialRecognitionTask(Context context, Activity activity, ProgressDialog progressDialog, AsyncResponse delegate){
+    public FacialRecognitionTask(FaceServiceClient faceServiceClient, Context context, Activity activity, ProgressDialog progressDialog, AsyncResponse delegate){
         Log.d(LOG_TAG, "In constructor");
+        this.mFaceServiceClient = faceServiceClient;
         this.mContext = context;
         this.mActivity = activity;
         this.mProgressDialog = progressDialog;
@@ -40,14 +42,14 @@ public class FacialRecognitionTask extends AsyncTask<InputStream, String, Face[]
     @Override
     protected Face[] doInBackground(InputStream... params) {
         // Get an instance of face service client to detect faces in image.
-        FaceServiceClient faceServiceClient = MyApp.getFaceServiceClient();
+
         Log.d(LOG_TAG, "In constructor 44");
         Log.d(LOG_TAG, "params[0] "+params[0]);
         try {
             publishProgress("Detecting...");
 
             // Start detection.
-            return faceServiceClient.detect(
+            return mFaceServiceClient.detect(
                     params[0],  /* Input stream of image to detect */
                     true,       /* Whether to return face ID */
                     true,       /* Whether to return face landmarks */
@@ -93,6 +95,8 @@ public class FacialRecognitionTask extends AsyncTask<InputStream, String, Face[]
         mProgressDialog.dismiss();
         if (mSucceed) {
             Log.d(LOG_TAG," Succeeded");
+            Log.d(LOG_TAG, "Response: Success. Detected " + (result == null ? 0 : result.length)
+                        + " face(s) in " + result.length);
             delegate.processFinish(result);
         }else{
             Log.d(LOG_TAG," Not Succeeded");

@@ -4,11 +4,13 @@ import android.app.ProgressDialog;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.Toolbar;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -18,18 +20,27 @@ import android.widget.ImageView;
 
 import com.microsoft.projectoxford.face.FaceServiceClient;
 import com.microsoft.projectoxford.face.FaceServiceRestClient;
+import com.microsoft.projectoxford.face.contract.Accessory;
+import com.microsoft.projectoxford.face.contract.Emotion;
 import com.microsoft.projectoxford.face.contract.Face;
+import com.microsoft.projectoxford.face.contract.FacialHair;
+import com.microsoft.projectoxford.face.contract.Hair;
+import com.microsoft.projectoxford.face.contract.HeadPose;
+import com.microsoft.projectoxford.face.contract.Makeup;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 
-public class MainActivity extends AppCompatActivity{
+public class MainActivity extends AppCompatActivity implements FacialRecognitionTask.AsyncResponse{
     private final int PICK_IMAGE = 1;
     private static final String LOG_TAG = MainActivity.class.getSimpleName();
     private ProgressDialog mProgressDialog;
     private static FaceServiceClient mFaceServiceClient;
+    private RecyclerView mRecyclerView;
+    private RecyclerView.LayoutManager mLayoutManager;
+    private PersonAdapter mPersonAdapter;
+    private Bitmap mBitmap;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -37,7 +48,9 @@ public class MainActivity extends AppCompatActivity{
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
         mFaceServiceClient = new FaceServiceRestClient(getString(R.string.endpoint), getString(R.string.subscription_key));
+        
         Button button1 = (Button)findViewById(R.id.button1);
         button1.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -48,9 +61,14 @@ public class MainActivity extends AppCompatActivity{
             }
         });
 
+        mRecyclerView = (RecyclerView) findViewById(R.id.persons_recyclerview);
+        mLayoutManager = new LinearLayoutManager(this);
+
+        mRecyclerView.setLayoutManager(mLayoutManager);
 
 
     }
+
 
 
     @Override
@@ -66,19 +84,23 @@ public class MainActivity extends AppCompatActivity{
         if (requestCode == PICK_IMAGE && resultCode == RESULT_OK && data != null && data.getData() != null) {
             Uri uri = data.getData();
             try {
-                Bitmap bitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), uri);
+                mBitmap = MediaStore.Images.Media.getBitmap(getContentResolver(), uri);
                 ImageView imageView = (ImageView) findViewById(R.id.imageView1);
-                imageView.setImageBitmap(bitmap);
+                imageView.setImageBitmap(mBitmap);
 
                 //Now once I have got the image from the gallery, call the microsoft Azure
                 ByteArrayOutputStream output = new ByteArrayOutputStream();
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, output);
+                mBitmap.compress(Bitmap.CompressFormat.JPEG, 100, output);
                 ByteArrayInputStream inputStream = new ByteArrayInputStream(output.toByteArray());
 
+                //detectAndFrame(mBitmap);
                 mProgressDialog = new ProgressDialog(this);
-                mProgressDialog.setTitle("Analysing...");
+                mProgressDialog.setTitle("Analysing....");
 
-                new DetectionTask().execute(inputStream);
+                FacialRecognitionTask facialRecognitionTask = new FacialRecognitionTask
+                        (mFaceServiceClient,getApplicationContext(),this,mProgressDialog,this);
+                facialRecognitionTask.execute(inputStream);
+
 
             } catch (IOException e) {
                 e.printStackTrace();
@@ -102,111 +124,125 @@ public class MainActivity extends AppCompatActivity{
     }
 
 
-    private class DetectionTask extends AsyncTask<InputStream, String, Face[]> {
-        private boolean mSucceed = true;
 
-        @Override
-        protected Face[] doInBackground(InputStream... params) {
-            // Get an instance of face service client to detect faces in image.
-            //FaceServiceClient faceServiceClient = MyApp.getFaceServiceClient();
-            Log.d(LOG_TAG, "In constructor 112");
-            try {
-                publishProgress("Detecting...");
-
-                // Start detection.
-                return mFaceServiceClient.detect(
-                        params[0],  /* Input stream of image to detect */
-                        true,       /* Whether to return face ID */
-                        true,       /* Whether to return face landmarks */
-                        /* Which face attributes to analyze, currently we support:
-                           age,gender,headPose,smile,facialHair */
-                        new FaceServiceClient.FaceAttributeType[] {
-                                FaceServiceClient.FaceAttributeType.Age,
-                                FaceServiceClient.FaceAttributeType.Gender,
-                                FaceServiceClient.FaceAttributeType.Smile,
-                                FaceServiceClient.FaceAttributeType.Glasses,
-                                FaceServiceClient.FaceAttributeType.FacialHair,
-                                FaceServiceClient.FaceAttributeType.Emotion,
-                                FaceServiceClient.FaceAttributeType.HeadPose,
-                                FaceServiceClient.FaceAttributeType.Accessories,
-                                FaceServiceClient.FaceAttributeType.Blur,
-                                FaceServiceClient.FaceAttributeType.Exposure,
-                                FaceServiceClient.FaceAttributeType.Hair,
-                                FaceServiceClient.FaceAttributeType.Makeup,
-                                FaceServiceClient.FaceAttributeType.Noise,
-                                FaceServiceClient.FaceAttributeType.Occlusion
-                        });
-            } catch (Exception e) {
-                mSucceed = false;
-                Log.d(LOG_TAG, "In constructor 141: "+e.getMessage());
-                publishProgress(e.getMessage());
-                //addLog(e.getMessage());
-                e.printStackTrace();
-                return null;
-            }
+    @Override
+    public void processFinish(Face[] faces) {
+        Log.d(LOG_TAG, "processFinish");
+        if(faces != null){
+            mPersonAdapter = new PersonAdapter(faces,this,mBitmap);
+            mRecyclerView.setAdapter(mPersonAdapter);
         }
-
-        @Override
-        protected void onPreExecute() {
-            mProgressDialog.show();
-            //addLog("Request: Detecting in image " + mImageUri);
-        }
-
-        @Override
-        protected void onProgressUpdate(String... progress) {
-            mProgressDialog.setMessage(progress[0]);
-            //setInfo(progress[0]);
-        }
-
-
-        @Override
-        protected void onPostExecute(Face[] result) {
-            Log.d(LOG_TAG, "In constructor 163");
-            if (mSucceed) {
-                Log.d(LOG_TAG, "Response: Success. Detected " + (result == null ? 0 : result.length)
-                        + " face(s) in " + result.length);
-            }
-
-            // Show the result on screen when detection is done.
-            setUiAfterDetection(result, mSucceed);
-        }
-
-
-        }
-
-    // Show the result on screen when detection is done.
-    private void setUiAfterDetection(Face[] result, boolean succeed) {
-        // Detection is done, hide the progress dialog.
-        mProgressDialog.dismiss();
-
-
-        if (succeed) {
-            // The information about the detection result.
-            String detectionResult;
-            if (result != null) {
-                detectionResult = result.length + " face"
-                        + (result.length != 1 ? "s" : "") + " detected";
-//
-//                // Show the detected faces on original image.
-//                ImageView imageView = (ImageView) findViewById(R.id.image);
-//                imageView.setImageBitmap(ImageHelper.drawFaceRectanglesOnBitmap(
-//                        mBitmap, result, true));
-//
-//                // Set the adapter of the ListView which contains the details of the detected faces.
-//                FaceListAdapter faceListAdapter = new FaceListAdapter(result);
-//
-//                // Show the detailed list of detected faces.
-//                ListView listView = (ListView) findViewById(R.id.list_detected_faces);
-//                listView.setAdapter(faceListAdapter);
-            } else {
-                detectionResult = "0 face detected";
-            }
-            Log.d(LOG_TAG,detectionResult);
-        }
-
-//        mImageUri = null;
-//        mBitmap = null;
+            Log.d(LOG_TAG, "Number of faces: "+faces.length);
     }
+
+
+
+
+
+
+
+    // Detecting/Analysing
+    private String getHair(Hair hair) {
+        if (hair.hairColor.length == 0)
+        {
+            if (hair.invisible)
+                return "Invisible";
+            else
+                return "Bald";
+        }
+        else
+        {
+            int maxConfidenceIndex = 0;
+            double maxConfidence = 0.0;
+
+            for (int i = 0; i < hair.hairColor.length; ++i)
+            {
+                if (hair.hairColor[i].confidence > maxConfidence)
+                {
+                    maxConfidence = hair.hairColor[i].confidence;
+                    maxConfidenceIndex = i;
+                }
+            }
+
+            return hair.hairColor[maxConfidenceIndex].color.toString();
+        }
+    }
+
+    private String getMakeup(Makeup makeup) {
+        return  (makeup.eyeMakeup || makeup.lipMakeup) ? "Yes" : "No" ;
+    }
+
+    private String getAccessories(Accessory[] accessories) {
+        if (accessories.length == 0)
+        {
+            return "NoAccessories";
+        }
+        else
+        {
+            String[] accessoriesList = new String[accessories.length];
+            for (int i = 0; i < accessories.length; ++i)
+            {
+                accessoriesList[i] = accessories[i].type.toString();
+            }
+
+            return TextUtils.join(",", accessoriesList);
+        }
+    }
+
+    private String getFacialHair(FacialHair facialHair) {
+        return (facialHair.moustache + facialHair.beard + facialHair.sideburns > 0) ? "Yes" : "No";
+    }
+
+    private String getEmotion(Emotion emotion)
+    {
+        String emotionType = "";
+        double emotionValue = 0.0;
+        if (emotion.anger > emotionValue)
+        {
+            emotionValue = emotion.anger;
+            emotionType = "Anger";
+        }
+        if (emotion.contempt > emotionValue)
+        {
+            emotionValue = emotion.contempt;
+            emotionType = "Contempt";
+        }
+        if (emotion.disgust > emotionValue)
+        {
+            emotionValue = emotion.disgust;
+            emotionType = "Disgust";
+        }
+        if (emotion.fear > emotionValue)
+        {
+            emotionValue = emotion.fear;
+            emotionType = "Fear";
+        }
+        if (emotion.happiness > emotionValue)
+        {
+            emotionValue = emotion.happiness;
+            emotionType = "Happiness";
+        }
+        if (emotion.neutral > emotionValue)
+        {
+            emotionValue = emotion.neutral;
+            emotionType = "Neutral";
+        }
+        if (emotion.sadness > emotionValue)
+        {
+            emotionValue = emotion.sadness;
+            emotionType = "Sadness";
+        }
+        if (emotion.surprise > emotionValue)
+        {
+            emotionValue = emotion.surprise;
+            emotionType = "Surprise";
+        }
+        return String.format("%s: %f", emotionType, emotionValue);
+    }
+
+    private String getHeadPose(HeadPose headPose)
+    {
+        return String.format("Pitch: %s, Roll: %s, Yaw: %s", headPose.pitch, headPose.roll, headPose.yaw);
+    }
+
 }
-
-
