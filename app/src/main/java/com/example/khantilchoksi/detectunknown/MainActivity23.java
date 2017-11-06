@@ -105,8 +105,8 @@
 //
 //
 //    @Override
-//    public void processFinish(Face[] faces) {
-//        Log.d(LOG_TAG, "processFinish");
+//    public void processTextFinish(Face[] faces) {
+//        Log.d(LOG_TAG, "processTextFinish");
 //        if(faces != null)
 //            Log.d(LOG_TAG, "NOT NULL");
 //    }

@@ -1,7 +1,6 @@
 package com.example.khantilchoksi.detectunknown;
 
 import android.app.Activity;
-import android.app.ProgressDialog;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.os.AsyncTask;
@@ -22,11 +21,22 @@ import com.google.api.services.vision.v1.model.EntityAnnotation;
 import com.google.api.services.vision.v1.model.Feature;
 import com.google.api.services.vision.v1.model.Image;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import static android.content.ContentValues.TAG;
 
@@ -35,33 +45,31 @@ import static android.content.ContentValues.TAG;
  */
 public class ObjectTextRecognitionTask extends AsyncTask<Object, Void, String> {
     private boolean mSucceed = true;
-    private ProgressDialog mProgressDialog;
+    //private ProgressDialog mProgressDialog;
     private Activity mActivity;
     private Context mContext;
     private static final String ANDROID_CERT_HEADER = "X-Android-Cert";
     private static final String ANDROID_PACKAGE_HEADER = "X-Android-Package";
     private static Bitmap mBitmap;
-    private static ArrayList<String> mLabelsList;
-    private static ArrayList<Float> mScoresList;
+    private static String[] mTextLabels = {"Label1","Label2"};
 
     private static final String LOG_TAG = ObjectTextRecognitionTask.class.getSimpleName();
     public AsyncResponse delegate = null;
 
 
-    public ObjectTextRecognitionTask(Bitmap bitmap, Context context, Activity activity, ProgressDialog progressDialog, AsyncResponse delegate) {
+    public ObjectTextRecognitionTask(Bitmap bitmap, Context context, Activity activity, AsyncResponse delegate) {
         Log.d(LOG_TAG, "In constructor");
         this.mBitmap = bitmap;
         this.mContext = context;
         this.mActivity = activity;
-        this.mProgressDialog = progressDialog;
+        //this.mProgressDialog = progressDialog;
         this.delegate = delegate;
-        this.mLabelsList = new ArrayList<>();
-        this.mScoresList = new ArrayList<>();
+
 
     }
 
     public interface AsyncResponse {
-        void processFinish(ArrayList<String> labelsList, ArrayList<Float> scoresList);
+        void processTextFinish(String[] mTextLabels);
     }
 
     @Override
@@ -116,7 +124,7 @@ public class ObjectTextRecognitionTask extends AsyncTask<Object, Void, String> {
                 annotateImageRequest.setFeatures(new ArrayList<Feature>() {{
                     Feature labelDetection = new Feature();
                     //labelDetection.setType("LABEL_DETECTION");
-                    //labelDetection.setType("TEXT_DETECTION");
+                    labelDetection.setType("TEXT_DETECTION");
                     labelDetection.setMaxResults(10);
                     add(labelDetection);
                 }});
@@ -143,19 +151,19 @@ public class ObjectTextRecognitionTask extends AsyncTask<Object, Void, String> {
         return "Cloud Vision API request failed. Check logs for details.";
     }
 
-
+/*
     @Override
     protected void onPreExecute() {
         mProgressDialog.show();
-    }
+    }*/
 
 
     @Override
     protected void onPostExecute(String result) {
-        mProgressDialog.dismiss();
+       // mProgressDialog.dismiss();
         if (mSucceed) {
             Log.d(LOG_TAG, " Succeeded");
-            delegate.processFinish(mLabelsList, mScoresList);
+            delegate.processTextFinish(mTextLabels);
         } else {
             Log.d(LOG_TAG, " Not Succeeded");
         }
@@ -168,11 +176,11 @@ public class ObjectTextRecognitionTask extends AsyncTask<Object, Void, String> {
         String message = "I found these things:\n\n";
         Log.d(LOG_TAG, "HELLO: "+response.toPrettyString());
 
+        //mTextLabels = searchWords(response);
+
         List<EntityAnnotation> labels = response.getResponses().get(0).getLabelAnnotations();
         if (labels != null) {
             for (EntityAnnotation label : labels) {
-                mLabelsList.add(label.getDescription());
-                mScoresList.add(label.getScore()*100);
                 message += String.format(Locale.US, "%.3f: %s", label.getScore(), label.getDescription());
                 message += "\n";
             }
@@ -181,5 +189,61 @@ public class ObjectTextRecognitionTask extends AsyncTask<Object, Void, String> {
         }
 
         return message;
+    }
+
+    public static String[] searchWords (JSONObject json) throws JSONException {
+
+        try{
+            //Object obj = parser.parse(new FileReader("C:\\Users\\Dax Amin\\Downloads\\result(1).json"));
+            //JSONObject json = (JSONObject) obj;
+            JSONArray text =  (JSONArray)json.get("textAnnotations");
+//            Iterator<JSONObject> iterator = text.get
+  //          iterator.next();
+
+            HashMap<String, Long> searchWord = new HashMap<String, Long>();
+            for(int i = 1; i<text.length(); i++){
+                JSONObject temp = text.getJSONObject(i);
+                JSONObject temp2 = (JSONObject) temp.get("boundingPoly");
+                JSONArray vertex = (JSONArray) temp2.get("vertices");
+                JSONObject first = (JSONObject) vertex.get(1);
+                JSONObject second = (JSONObject) vertex.get(2);
+
+                Long first_y = (Long) first.get("y");
+                Long second_y = (Long) second.get("y");
+                searchWord.put((String) temp.get("description"), second_y-first_y);
+            }
+
+            Map<String, Long> sortedSearchWord = sortByValue(searchWord);
+
+            Iterator it = sortedSearchWord.entrySet().iterator();
+            String[] str = new String[3];
+            int i =0;
+            while(it.hasNext() && i<3) {
+                Map.Entry pair = (Map.Entry) it.next();
+                str[i] = (String) pair.getKey();
+                i++;
+            }
+
+            return(str);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+
+    }
+
+    public static <K, V extends Comparable<? super V>> Map<K, V> sortByValue(Map<K, V> map) {
+        List<Map.Entry<K, V>> list = new LinkedList<Map.Entry<K, V>>(map.entrySet());
+        Collections.sort(list, new Comparator<Map.Entry<K, V>>() {
+            public int compare(Map.Entry<K, V> o1, Map.Entry<K, V> o2) {
+                return (o2.getValue()).compareTo(o1.getValue());
+            }
+        });
+
+        Map<K, V> result = new LinkedHashMap<K, V>();
+        for (Map.Entry<K, V> entry : list) {
+            result.put(entry.getKey(), entry.getValue());
+        }
+        return result;
     }
 }

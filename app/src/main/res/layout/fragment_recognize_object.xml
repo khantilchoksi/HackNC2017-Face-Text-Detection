@@ -27,9 +27,27 @@
             android:id="@+id/objects_recyclerview"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_above="@+id/button2"
+            android:layout_above="@+id/divider"
             android:layout_marginTop="@dimen/activity_horizontal_margin_half" />
 
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginBottom="5dp"
+            android:layout_marginTop="5dp"
+            android:background="@color/iron"
+            android:id="@+id/divider"
+            android:layout_above="@+id/objects_textview"
+            android:visibility="gone"/>
+
+
+        <TextView
+            android:id="@+id/objects_textview"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_above="@+id/button2"
+            android:text="Label1"
+            android:visibility="gone"/>
 
         <Button
             android:id="@+id/button2"

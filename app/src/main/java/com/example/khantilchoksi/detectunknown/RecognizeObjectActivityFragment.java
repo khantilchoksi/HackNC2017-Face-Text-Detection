@@ -26,7 +26,8 @@ import static android.app.Activity.RESULT_OK;
 /**
  * A placeholder fragment containing a simple view.
  */
-public class RecognizeObjectActivityFragment extends Fragment implements ObjectRecognitionTask.AsyncResponse{
+public class RecognizeObjectActivityFragment extends Fragment
+        implements ObjectRecognitionTask.AsyncResponse, ObjectTextRecognitionTask.AsyncResponse{
 
     private final int PICK_IMAGE = 1;
     private static final String LOG_TAG = MainActivity.class.getSimpleName();
@@ -52,7 +53,7 @@ public class RecognizeObjectActivityFragment extends Fragment implements ObjectR
 
         mRecyclerView.setLayoutManager(mLayoutManager);
 
-        //mTextView = (TextView) mRootView.findViewById(R.id.objects_textview);
+        mTextView = (TextView) mRootView.findViewById(R.id.objects_textview);
 /*        Vision.Builder visionBuilder = new Vision.Builder(
                 new NetHttpTransport(),
                 new AndroidJsonFactory(),
@@ -104,6 +105,10 @@ public class RecognizeObjectActivityFragment extends Fragment implements ObjectR
                         (mBitmap,getActivity().getApplicationContext(),getActivity(),mProgressDialog,this);
                 facialRecognitionTask.execute(inputStream);
 
+                ObjectTextRecognitionTask objectTextRecognitionTask = new ObjectTextRecognitionTask(
+                        mBitmap,getActivity().getApplicationContext(),getActivity(),this);
+                objectTextRecognitionTask.execute(inputStream);
+
 
             } catch (IOException e) {
                 e.printStackTrace();
@@ -137,6 +142,13 @@ public class RecognizeObjectActivityFragment extends Fragment implements ObjectR
         if(labelsList!= null && scoresList!= null){
             mLabelsAdapter = new LabelsAdapter(labelsList,scoresList,getActivity());
             mRecyclerView.setAdapter(mLabelsAdapter);
+        }
+    }
+
+    @Override
+    public void processTextFinish(String[] mTextLabels) {
+        if(mTextLabels != null){
+            mTextView.setText(mTextLabels[0] + mTextLabels[1]);
         }
     }
 }

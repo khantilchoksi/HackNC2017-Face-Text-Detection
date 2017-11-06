@@ -127,7 +127,7 @@ public class MainActivity extends AppCompatActivity implements FacialRecognition
 
     @Override
     public void processFinish(Face[] faces) {
-        Log.d(LOG_TAG, "processFinish");
+        Log.d(LOG_TAG, "processTextFinish");
         if(faces != null){
             mPersonAdapter = new PersonAdapter(faces,this,mBitmap);
             mRecyclerView.setAdapter(mPersonAdapter);
